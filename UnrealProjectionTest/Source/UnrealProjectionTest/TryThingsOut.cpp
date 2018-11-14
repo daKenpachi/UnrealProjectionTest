@@ -36,7 +36,6 @@ FBox2D UTryThingsOut::ConvertBoundBox2D(FMinimalViewInfo ViewInfo, FBox2D Resolu
 
 FBox2D UTryThingsOut::calcBoundingFromBinary(UTextureRenderTarget2D * RenderTexture)
 {
-	double start = FPlatformTime::Seconds();
 
 	TArray<FLinearColor> ImageData;
 	FRenderTarget *RenderTarget = RenderTexture->GameThread_GetRenderTargetResource();
@@ -66,7 +65,6 @@ FBox2D UTryThingsOut::calcBoundingFromBinary(UTextureRenderTarget2D * RenderText
 		}
 	}
 	FBox2D box(minPoint, maxPoint);
-	double end = FPlatformTime::Seconds();
-	UE_LOG(PixelAccessLog, Log, TEXT("Generated Bounding Box %s in %f ms"), *box.ToString(), (end - start)*1000.0f);
+
 	return box;
 }
