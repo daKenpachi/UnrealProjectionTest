@@ -7,6 +7,9 @@
 #include "Camera/CameraTypes.h"
 #include "IntRect.h"
 #include "Runtime/Engine/Classes/Engine/TextureRenderTarget2D.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "Runtime/Engine/Classes/Components/SceneCaptureComponent2D.h"
+#include "Runtime/Core/Public/Math/Box.h"
 
 #include "TryThingsOut.generated.h"
 
@@ -23,4 +26,13 @@ class UNREALPROJECTIONTEST_API UTryThingsOut : public UBlueprintFunctionLibrary
 
 	UFUNCTION(BlueprintCallable, Category = "Try")
 		static FBox2D calcBoundingFromBinary(UTextureRenderTarget2D * RenderTexture);
+
+	UFUNCTION(BlueprintCallable, Category = "Try")
+		static FBox2D calcBoundingFromColor(UTextureRenderTarget2D * RenderTexture, FLinearColor Color);
+
+	UFUNCTION(BlueprintCallable, Category = "Try")
+		static void RenderTarget2PointCloudWithView(USceneCaptureComponent2D* CaptureComponent, FBox2D BoundingBox, TArray<FVector>& PointCloud);
+
+	UFUNCTION(BlueprintCallable, Category = "Try")
+		static bool ComparePointsWithMesh(AActor* MeshInWorld, TArray<FVector> Points, FTransform RelativePointTransform, FString& CompareMessage);
 };
