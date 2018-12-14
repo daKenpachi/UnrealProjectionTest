@@ -24,6 +24,9 @@ class UNREALPROJECTIONTEST_API UTryThingsOut : public UBlueprintFunctionLibrary
 		UFUNCTION(BlueprintPure, Category = "Try")
 		static FBox2D ConvertBoundBox2D(FMinimalViewInfo ViewInfo, FBox2D Resolution, FVector Origin,  FVector Extend, TArray<FVector2D>& Pixels, TArray<FVector>& Points);
 
+	UFUNCTION(BluePrintCallable, Category = "Try")
+		static bool calcBoundingFromBox(USceneCaptureComponent2D* RenderComponent, FBox BoundingBox3D, FBox2D& BoxOut, TArray<FVector>& Points, TArray<FVector2D>& Points2D);
+
 	UFUNCTION(BlueprintCallable, Category = "Try")
 		static FBox2D calcBoundingFromBinary(UTextureRenderTarget2D * RenderTexture);
 

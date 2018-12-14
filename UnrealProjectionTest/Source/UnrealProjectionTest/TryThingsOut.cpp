@@ -2,6 +2,9 @@
 
 #include "TryThingsOut.h"
 #include "SceneView.h"
+#include "Runtime/Engine/Public/TextureResource.h"
+#include "Runtime/Engine/Classes/Engine/TextureRenderTarget2D.h"
+#include "Engine/Texture2D.h"
 #include "Box2D.h"
 
 FBox2D UTryThingsOut::ConvertBoundBox2D(FMinimalViewInfo ViewInfo, FBox2D Resolution, FVector Origin, FVector Extend, TArray<FVector2D>& Pixels, TArray<FVector>& Points)
@@ -32,6 +35,88 @@ FBox2D UTryThingsOut::ConvertBoundBox2D(FMinimalViewInfo ViewInfo, FBox2D Resolu
 	}
 
 	return FBox2D(MinPixel, MaxPixel);
+}
+
+bool UTryThingsOut::calcBoundingFromBox(USceneCaptureComponent2D * RenderComponent, FBox BoundingBox3D, FBox2D & BoxOut, TArray<FVector>& Points, TArray<FVector2D>& Points2D)
+{
+	bool isCompletelyInView = true;
+	UTextureRenderTarget2D* RenderTexture = RenderComponent->TextureTarget;
+	FRenderTarget *RenderTarget = RenderTexture->GameThread_GetRenderTargetResource();
+
+	FMinimalViewInfo Info;
+	Info.Location = RenderComponent->GetComponentTransform().GetLocation();
+	Info.Rotation = FRotator(RenderComponent->GetComponentTransform().GetRotation());
+	Info.FOV = RenderComponent->FOVAngle;
+	Info.ProjectionMode = RenderComponent->ProjectionType;
+	Info.AspectRatio = float(RenderTexture->SizeX) / float(RenderTexture->SizeY);
+
+	FVector Extend = (BoundingBox3D.Max - BoundingBox3D.Min) / 2;
+	FVector Origin = BoundingBox3D.Min + Extend;
+	//FBox Box3D(Origin - Extend, Origin + Extend);
+	//FVector cornerPoint = Box3D.GetExtrema(i);
+
+	Points.Add(Origin + FVector(Extend.X, Extend.Y, Extend.Z));
+	Points.Add(Origin + FVector(-Extend.X, Extend.Y, Extend.Z));
+	Points.Add(Origin + FVector(Extend.X, -Extend.Y, Extend.Z));
+	Points.Add(Origin + FVector(-Extend.X, -Extend.Y, Extend.Z));
+	Points.Add(Origin + FVector(Extend.X, Extend.Y, -Extend.Z));
+	Points.Add(Origin + FVector(-Extend.X, Extend.Y, -Extend.Z));
+	Points.Add(Origin + FVector(Extend.X, -Extend.Y, -Extend.Z));
+	Points.Add(Origin + FVector(-Extend.X, -Extend.Y, -Extend.Z));
+
+	FVector2D MinPixel(RenderTexture->SizeX, RenderTexture->SizeY);
+	FVector2D MaxPixel(0, 0);
+
+	FIntRect ScreenRect(0, 0, RenderTexture->SizeX / 4, RenderTexture->SizeY / 4);
+	FTransform ViewTransform = RenderComponent->GetComponentTransform();
+	FMatrix ViewMatrix(ViewTransform.ToMatrixWithScale());
+	FMatrix ProjectionMatrix = Info.CalculateProjectionMatrix();
+	for (FVector& Point : Points) {
+		FVector2D Pixel;
+		FSceneView::ProjectWorldToScreen((Point), ScreenRect, ProjectionMatrix, Pixel);
+		Points2D.Add(Pixel);
+		MaxPixel.X = FMath::Max(Pixel.X, MaxPixel.X);
+		MaxPixel.Y = FMath::Max(Pixel.Y, MaxPixel.Y);
+		MinPixel.X = FMath::Min(Pixel.X, MinPixel.X);
+		MinPixel.Y = FMath::Min(Pixel.Y, MinPixel.Y);
+	}
+
+	BoxOut = FBox2D(MinPixel, MaxPixel);
+	// clamp min point
+	if (BoxOut.Min.X < 0) {
+		BoxOut.Min.X = 0;
+		isCompletelyInView = false;
+	}
+	else if (BoxOut.Min.X > RenderTexture->SizeX) {
+		BoxOut.Min.X = RenderTexture->SizeX;
+		isCompletelyInView = false;
+	}
+	if (BoxOut.Min.Y < 0) {
+		BoxOut.Min.Y = 0;
+		isCompletelyInView = false;
+	}
+	else if (BoxOut.Min.Y > RenderTexture->SizeY) {
+		BoxOut.Min.Y = RenderTexture->SizeY;
+		isCompletelyInView = false;
+	}
+	// clamp max point
+	if (BoxOut.Max.X > RenderTexture->SizeX) {
+		BoxOut.Max.X = RenderTexture->SizeX;
+		isCompletelyInView = false;
+	}
+	else if (BoxOut.Max.X < 0) {
+		BoxOut.Max.X = 0;
+		isCompletelyInView = false;
+	}
+	if (BoxOut.Max.Y > RenderTexture->SizeY) {
+		BoxOut.Max.Y = RenderTexture->SizeY;
+		isCompletelyInView = false;
+	}
+	else if (BoxOut.Max.Y < 0) {
+		BoxOut.Max.Y = 0;
+		isCompletelyInView = false;
+	}
+	return isCompletelyInView;
 }
 
 FBox2D UTryThingsOut::calcBoundingFromBinary(UTextureRenderTarget2D * RenderTexture)
