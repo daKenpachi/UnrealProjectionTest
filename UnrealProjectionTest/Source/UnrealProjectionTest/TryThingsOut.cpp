@@ -4,7 +4,9 @@
 #include "SceneView.h"
 #include "Runtime/Engine/Public/TextureResource.h"
 #include "Runtime/Engine/Classes/Engine/TextureRenderTarget2D.h"
+#include "Runtime/Engine/Classes/Components/SceneCaptureComponent2D.h"
 #include "Engine/Texture2D.h"
+#include "Runtime/Engine/Classes/Kismet/GameplayStatics.h"
 #include "Box2D.h"
 
 FBox2D UTryThingsOut::ConvertBoundBox2D(FMinimalViewInfo ViewInfo, FBox2D Resolution, FVector Origin, FVector Extend, TArray<FVector2D>& Pixels, TArray<FVector>& Points)
@@ -45,10 +47,18 @@ bool UTryThingsOut::calcBoundingFromBox(USceneCaptureComponent2D * RenderCompone
 
 	FMinimalViewInfo Info;
 	Info.Location = RenderComponent->GetComponentTransform().GetLocation();
-	Info.Rotation = FRotator(RenderComponent->GetComponentTransform().GetRotation());
+	Info.Rotation = RenderComponent->GetComponentTransform().GetRotation().Rotator();
 	Info.FOV = RenderComponent->FOVAngle;
 	Info.ProjectionMode = RenderComponent->ProjectionType;
 	Info.AspectRatio = float(RenderTexture->SizeX) / float(RenderTexture->SizeY);
+	Info.OrthoNearClipPlane = 1;
+	Info.OrthoFarClipPlane = 1000;
+	Info.bConstrainAspectRatio = true;
+
+	//FSceneViewInitOptions InitOptions;
+	//InitOptions.ViewActor = Cast<AActor>(RenderComponent);
+	//FScene* MyScene = RenderComponent->GetScene()->GetRenderScene();
+	//MyScene->
 
 	FVector Extend = (BoundingBox3D.Max - BoundingBox3D.Min) / 2;
 	FVector Origin = BoundingBox3D.Min + Extend;
@@ -66,14 +76,37 @@ bool UTryThingsOut::calcBoundingFromBox(USceneCaptureComponent2D * RenderCompone
 
 	FVector2D MinPixel(RenderTexture->SizeX, RenderTexture->SizeY);
 	FVector2D MaxPixel(0, 0);
-
-	FIntRect ScreenRect(0, 0, RenderTexture->SizeX / 4, RenderTexture->SizeY / 4);
+	FIntRect ScreenRect(0, 0, RenderTexture->SizeX, RenderTexture->SizeY);
+	//FIntRect ScreenRect(0, 0, 1, 1);
 	FTransform ViewTransform = RenderComponent->GetComponentTransform();
-	FMatrix ViewMatrix(ViewTransform.ToMatrixWithScale());
 	FMatrix ProjectionMatrix = Info.CalculateProjectionMatrix();
+	//FMatrix ProjectionMatrix(
+	//	FPlane(FMath::Atan(FMath::DegreesToRadians(Info.FOV)), 0, 0, 0),
+	//	FPlane(0, FMath::Atan(FMath::DegreesToRadians(Info.FOV)) * Info.AspectRatio, 0, 0),
+	//	FPlane(0, 0, 1, 1), //Info.OrthoFarClipPlane / (Info.OrthoNearClipPlane - Info.OrthoFarClipPlane), -1),
+	//	FPlane(0, 0, 1, 0)  //(Info.OrthoNearClipPlane * Info.OrthoFarClipPlane) / (Info.OrthoNearClipPlane - Info.OrthoFarClipPlane), 0)
+	//);
+	FSceneViewProjectionData ProjectionData;
+	ProjectionData.ViewOrigin = Info.Location;
+	ProjectionData.ViewRotationMatrix = FInverseRotationMatrix(Info.Rotation) * FMatrix(
+		FPlane(0, 0, 1, 0),
+		FPlane(1, 0, 0, 0),
+		FPlane(0, 1, 0, 0),
+		FPlane(0, 0, 0, 1));
+	ProjectionData.ProjectionMatrix = ProjectionMatrix;
+	ProjectionData.SetConstrainedViewRectangle(ScreenRect);
+
+	//FSceneViewInitOptions InitSceneView;
+	//InitSceneView.ViewActor = Cast<AActor>(RenderComponent);
+	//InitSceneView.FOV = RenderComponent->FOVAngle;
+	//FSceneViewFamily::ConstructionValues ctr(RenderTarget, RenderComponent->GetScene(), FEngineShowFlags());
+	//FSceneViewFamily fam(ctr);
+	//InitSceneView.ViewFamily = &fam;
+
 	for (FVector& Point : Points) {
 		FVector2D Pixel;
-		FSceneView::ProjectWorldToScreen((Point), ScreenRect, ProjectionMatrix, Pixel);
+		//UGameplayStatics::ProjectWorldToScreen;
+		FSceneView::ProjectWorldToScreen((Point), ScreenRect, ProjectionData.ComputeViewProjectionMatrix(), Pixel);
 		Points2D.Add(Pixel);
 		MaxPixel.X = FMath::Max(Pixel.X, MaxPixel.X);
 		MaxPixel.Y = FMath::Max(Pixel.Y, MaxPixel.Y);
